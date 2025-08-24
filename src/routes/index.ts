@@ -1,8 +1,16 @@
 import { Router } from "express";
 import { ResponseHandler } from "../utils/response";
 import config from "../config/env";
+import authRoutes from "./authRoutes";
+import adminRoutes from "./adminRoutes";
 
 const router = Router();
+
+// Authentication routes
+router.use("/auth", authRoutes);
+
+// Admin routes
+router.use("/admin", adminRoutes);
 
 // Health check endpoint
 router.get("/health", (req, res) => {

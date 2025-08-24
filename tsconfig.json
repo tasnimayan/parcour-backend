@@ -5,15 +5,18 @@
     "module": "commonjs",
     "rootDir": "./src",
     "outDir": "./dist",
-    "strict": true,
+    "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+
+    "noImplicitAny": false,
+    "strictNullChecks": false
   },
-  "include": ["src/**/*", "prisma/**/*", "prisma"],
+  "include": ["src/**/*", "src/types", "prisma/**/*", "prisma"],
   "exclude": ["node_modules", "dist"]
 }

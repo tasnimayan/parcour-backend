@@ -1,18 +1,13 @@
-import { Response, NextFunction } from "express";
+import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import prisma from "../config/database";
 import { ResponseHandler } from "../utils/response";
-import { AuthRequest } from "../types";
 import config from "../config/env";
 import { UserRole, UserStatus } from "@prisma/client";
 
-export const authenticate = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+export const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const authHeader = req.headers.get("authorization");
+    const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       ResponseHandler.unauthorized(res);
@@ -45,13 +40,13 @@ export const authenticate = async (
 };
 
 export const authorize = (roles: UserRole[]) => {
-  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       ResponseHandler.unauthorized(res, "Authentication required");
       return;
     }
 
-    if (!roles.includes(req.user.role as UserRole)) {
+    if (!roles.includes(req.user.role)) {
       ResponseHandler.forbidden(res, "Insufficient permissions");
       return;
     }
