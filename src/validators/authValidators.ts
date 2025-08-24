@@ -79,7 +79,11 @@ export const authValidators = {
         }
         return true;
       }),
-    body("gender").optional().isIn(["MALE", "FEMALE"]).withMessage("Gender must be either MALE or FEMALE"),
+    body("gender")
+      .toUpperCase()
+      .optional()
+      .isIn(["MALE", "FEMALE"])
+      .withMessage("Gender must be either MALE or FEMALE"),
   ],
 
   // Agent-specific validations
@@ -119,6 +123,7 @@ export const authValidators = {
         return true;
       }),
     body("vehicleType")
+      .toUpperCase()
       .isIn(["BIKE", "CAR", "VAN", "TRUCK", "BICYCLE"])
       .withMessage("Vehicle type must be one of: BIKE, CAR, VAN, TRUCK, BICYCLE"),
     body("vehicleNumber")
@@ -130,6 +135,7 @@ export const authValidators = {
       .isLength({ min: 5, max: 20 })
       .withMessage("License number must be between 5 and 20 characters"),
     body("employmentType")
+      .optional()
       .isIn(["FULL_TIME", "PART_TIME", "CONTRACT"])
       .withMessage("Employment type must be one of: FULL_TIME, PART_TIME, CONTRACT"),
   ],

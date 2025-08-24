@@ -1,5 +1,6 @@
 On first run of the project
 run `npx prisma generate`
+npx prisma migrate dev --name init
 
 # API Endpoints:
 

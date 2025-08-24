@@ -1,5 +1,5 @@
-import rateLimit from 'express-rate-limit';
-import config from '../config/env';
+import rateLimit from "express-rate-limit";
+import config from "../config/env";
 
 export const createRateLimiter = (windowMs?: number, max?: number) => {
   return rateLimit({
@@ -7,8 +7,8 @@ export const createRateLimiter = (windowMs?: number, max?: number) => {
     max: max || config.RATE_LIMIT_MAX_REQUESTS,
     message: {
       success: false,
-      message: 'Too many requests, please try again later',
-      error: 'Rate limit exceeded',
+      message: "Too many requests, please try again later",
+      error: "Rate limit exceeded",
     },
     standardHeaders: true,
     legacyHeaders: false,
@@ -16,5 +16,5 @@ export const createRateLimiter = (windowMs?: number, max?: number) => {
 };
 
 // Different rate limits for different endpoints
-export const authRateLimit = createRateLimiter(15 * 60 * 1000, 5); // 5 attempts per 15 minutes for auth
+export const authRateLimit = createRateLimiter(10 * 60 * 1000, 20); // 5 attempts per 15 minutes for auth
 export const generalRateLimit = createRateLimiter(); // Default rate limit

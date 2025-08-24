@@ -3,9 +3,10 @@ import { UserRole } from "@prisma/client";
 import prisma from "../config/database";
 import { ResponseHandler } from "../utils/response";
 import { Logger } from "../utils/logger";
+import { AuthRequest } from "../types";
 
 // Assign an agent to a parcel
-export const assignAgentToParcel = async (req: Request, res: Response) => {
+export const assignAgentToParcel = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     const userRole = req.user?.role;
@@ -58,7 +59,7 @@ export const assignAgentToParcel = async (req: Request, res: Response) => {
 };
 
 // Get agent list with pagination (for Admin assignment screen)
-export const getAgentsList = async (req: Request, res: Response): Promise<void> => {
+export const getAgentsList = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userRole = req.user?.role;
     if (userRole !== UserRole.ADMIN) {
@@ -95,7 +96,7 @@ export const getAgentsList = async (req: Request, res: Response): Promise<void> 
 };
 
 // Get all users with filtering + pagination
-export const getUsersList = async (req: Request, res: Response): Promise<void> => {
+export const getUsersList = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userRole = req.user?.role;
     if (userRole !== UserRole.ADMIN) {

@@ -4,8 +4,13 @@ import prisma from "../config/database";
 import { ResponseHandler } from "../utils/response";
 import config from "../config/env";
 import { UserRole, UserStatus } from "@prisma/client";
+import { AuthRequest } from "../types";
 
-export const authenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const authenticate = async (
+  req: AuthRequest & { user?: { id: string; email: string; role: UserRole } },
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
 
@@ -40,7 +45,11 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 };
 
 export const authorize = (roles: UserRole[]) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return (
+    req: Request & { user?: { id: string; email: string; role: UserRole } },
+    res: Response,
+    next: NextFunction
+  ): void => {
     if (!req.user) {
       ResponseHandler.unauthorized(res, "Authentication required");
       return;
