@@ -27,6 +27,7 @@ interface UpdateParcelRequest {
   deliveryLng?: number;
   parcelType?: string;
   parcelSize?: string;
+  parcelWeight?: number;
   paymentType?: PaymentType;
   codAmount?: number;
 }
@@ -132,8 +133,6 @@ export const createParcel = async (req: AuthRequest, res: Response): Promise<voi
         },
       },
     });
-
-    Logger.info(`New parcel created: ${parcel.id} by customer: ${userId}`);
 
     ResponseHandler.success(res, "Parcel created successfully", parcel, 201);
   } catch (error) {
@@ -337,10 +336,35 @@ export const updateParcel = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    const updateData: UpdateParcelRequest = req.body;
+    const {
+      pickupAddress,
+      pickupLat,
+      pickupLng,
+      deliveryAddress,
+      deliveryLat,
+      deliveryLng,
+      parcelType,
+      parcelSize,
+      parcelWeight,
+      paymentType,
+      codAmount,
+    }: UpdateParcelRequest = req.body;
+
+    const updateData: any = {
+      ...(pickupAddress !== undefined && { pickupAddress }),
+      ...(pickupLat !== undefined && { pickupLat }),
+      ...(pickupLng !== undefined && { pickupLng }),
+      ...(deliveryAddress !== undefined && { deliveryAddress }),
+      ...(deliveryLat !== undefined && { deliveryLat }),
+      ...(deliveryLng !== undefined && { deliveryLng }),
+      ...(parcelType !== undefined && { parcelType }),
+      ...(parcelSize !== undefined && { parcelSize }),
+      ...(parcelWeight !== undefined && { parcelWeight }),
+      ...(paymentType !== undefined && { paymentType }),
+    };
 
     // Validate COD amount if payment type is being changed to COD
-    if (updateData.paymentType === "COD" && (!updateData.codAmount || updateData.codAmount <= 0)) {
+    if (paymentType === "COD" && (!codAmount || codAmount <= 0)) {
       ResponseHandler.error(res, "COD amount is required and must be greater than 0 for COD payments");
       return;
     }
@@ -360,8 +384,6 @@ export const updateParcel = async (req: AuthRequest, res: Response): Promise<voi
         },
       },
     });
-
-    Logger.info(`Parcel updated: ${id} by customer: ${userId}`);
 
     ResponseHandler.success(res, "Parcel updated successfully", updatedParcel);
   } catch (error) {
@@ -431,8 +453,6 @@ export const updateParcelStatus = async (req: AuthRequest, res: Response): Promi
       },
     });
 
-    Logger.info(`Parcel status updated: ${id} from ${parcel.status} to ${status} by ${userRole}: ${userId}`);
-
     ResponseHandler.success(res, "Parcel status updated successfully", updatedParcel);
   } catch (error) {
     Logger.error("Update parcel status error:", error);
@@ -446,11 +466,6 @@ export const deleteParcel = async (req: AuthRequest, res: Response): Promise<voi
     const { id } = req.params;
     const userId = req.user?.id;
     const userRole = req.user?.role;
-
-    if (userRole !== UserRole.CUSTOMER) {
-      ResponseHandler.forbidden(res, "Only customers can delete parcels");
-      return;
-    }
 
     const parcel = await prisma.parcel.findUnique({
       where: { id },
@@ -474,8 +489,6 @@ export const deleteParcel = async (req: AuthRequest, res: Response): Promise<voi
     await prisma.parcel.delete({
       where: { id },
     });
-
-    // Logger.info(`Parcel deleted: ${id} by customer: ${userId}`);
 
     ResponseHandler.success(res, "Parcel deleted successfully");
   } catch (error) {

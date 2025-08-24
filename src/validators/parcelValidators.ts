@@ -42,6 +42,8 @@ export const parcelValidators = {
       .isIn(["small", "medium", "large", "extra_large"])
       .withMessage("Parcel size must be one of: small, medium, large, extra_large"),
 
+    body("parcelWeight").optional().isFloat({ min: 0.01 }).withMessage("Parcel weight must be greater than 0"),
+
     body("paymentType")
       .isIn(["COD", "PREPAID", "ONLINE"])
       .withMessage("Payment type must be one of: COD, PREPAID, ONLINE"),
@@ -98,6 +100,7 @@ export const parcelValidators = {
       .optional()
       .isIn(["small", "medium", "large", "extra_large"])
       .withMessage("Parcel size must be one of: small, medium, large, extra_large"),
+    body("parcelWeight").optional().isFloat({ min: 0.01 }).withMessage("Parcel weight must be greater than 0"),
 
     body("paymentType")
       .optional()

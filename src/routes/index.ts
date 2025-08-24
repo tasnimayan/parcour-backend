@@ -3,6 +3,8 @@ import { ResponseHandler } from "../utils/response";
 import config from "../config/env";
 import authRoutes from "./authRoutes";
 import adminRoutes from "./adminRoutes";
+import agentRoutes from "./agentRoutes";
+import parcelRoutes from "./parcelRoutes";
 
 const router = Router();
 
@@ -11,6 +13,12 @@ router.use("/auth", authRoutes);
 
 // Admin routes
 router.use("/admin", adminRoutes);
+
+// Agent routes
+router.use("/agent", agentRoutes);
+
+// Parcel routes
+router.use("/parcel", parcelRoutes);
 
 // Health check endpoint
 router.get("/health", (req, res) => {

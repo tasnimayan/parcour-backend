@@ -1,5 +1,5 @@
-import { Request, Response } from "express";
-import { UserRole } from "@prisma/client";
+import { Response } from "express";
+import { ParcelStatus, UserRole } from "@prisma/client";
 import prisma from "../config/database";
 import { ResponseHandler } from "../utils/response";
 import { Logger } from "../utils/logger";
@@ -9,12 +9,6 @@ import { AuthRequest } from "../types";
 export const assignAgentToParcel = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
-    const userRole = req.user?.role;
-
-    if (userRole !== UserRole.ADMIN) {
-      ResponseHandler.forbidden(res, "Only Admin can assign agents");
-      return;
-    }
 
     const { parcelId, agentId } = req.body;
 
@@ -33,25 +27,39 @@ export const assignAgentToParcel = async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const assignment = await prisma.parcelAssignment.upsert({
-      where: { parcelId },
-      update: {
-        agentId,
-        assignedBy: userId!,
-        assignedAt: new Date(),
-      },
-      create: {
-        parcelId,
-        agentId,
-        assignedBy: userId!,
-      },
-      include: {
-        parcel: true,
-        agent: true,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const assignment = await prisma.parcelAssignment.upsert({
+        where: { parcelId },
+        update: {
+          agentId,
+          assignedBy: userId!,
+          assignedAt: new Date(),
+        },
+        create: {
+          parcelId,
+          agentId,
+          assignedBy: userId!,
+        },
+        include: {
+          agent: {
+            select: {
+              userId: true,
+              fullName: true,
+            },
+          },
+        },
+      });
+
+      const parcelStatus = await prisma.parcel.update({
+        where: { id: parcelId, status: { in: [ParcelStatus.PENDING, ParcelStatus.ASSIGNED] } },
+        data: { status: ParcelStatus.ASSIGNED },
+        select: { updatedAt: true },
+      });
+
+      return { assignment, parcelStatus };
     });
 
-    ResponseHandler.success(res, "Agent assigned successfully", assignment);
+    ResponseHandler.success(res, "Agent assigned successfully", result.assignment);
   } catch (error) {
     Logger.error("Error assigning agent:", error);
     ResponseHandler.serverError(res, "Failed to assign agent");
@@ -61,12 +69,6 @@ export const assignAgentToParcel = async (req: AuthRequest, res: Response) => {
 // Get agent list with pagination (for Admin assignment screen)
 export const getAgentsList = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const userRole = req.user?.role;
-    if (userRole !== UserRole.ADMIN) {
-      ResponseHandler.forbidden(res, "Only admin can view agents");
-      return;
-    }
-
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
@@ -112,7 +114,7 @@ export const getUsersList = async (req: AuthRequest, res: Response): Promise<voi
     const where: any = {};
 
     if (role) {
-      where.role = role;
+      where.role = (role as string).toUpperCase() as UserRole;
     }
 
     if (search) {
@@ -136,13 +138,41 @@ export const getUsersList = async (req: AuthRequest, res: Response): Promise<voi
           email: true,
           role: true,
           createdAt: true,
+          customer: {
+            select: {
+              fullName: true,
+              phone: true,
+            },
+          },
+          agent: {
+            select: {
+              fullName: true,
+              phone: true,
+            },
+          },
+          admin: {
+            select: {
+              fullName: true,
+            },
+          },
         },
       }),
       prisma.user.count({ where }),
     ]);
 
+    const transformedUsers = users?.map((u) => {
+      let profile = u.customer || u.agent || u.admin || null;
+      return {
+        ...u,
+        profile,
+        customer: undefined,
+        agent: undefined,
+        admin: undefined,
+      };
+    });
+
     ResponseHandler.success(res, "Users list fetched successfully", {
-      data: users,
+      data: transformedUsers,
       meta: {
         total,
         page,

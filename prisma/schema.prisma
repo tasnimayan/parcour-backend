@@ -120,7 +120,7 @@ model Customer {
 
 // Customer addresses
 model CustomerAddress {
-  id         BigInt   @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
   customerId String   @map("customer_id")
   customer   Customer @relation(fields: [customerId], references: [userId], onDelete: Cascade)
   label      String
@@ -239,7 +239,7 @@ model Parcel {
 
 // Parcel assignments
 model ParcelAssignment {
-  id         BigInt   @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
   parcelId   String   @unique @map("parcel_id")
   parcel     Parcel   @relation(fields: [parcelId], references: [id], onDelete: Cascade)
   agentId    String   @map("agent_id")

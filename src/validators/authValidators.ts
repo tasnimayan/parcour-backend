@@ -135,6 +135,7 @@ export const authValidators = {
       .isLength({ min: 5, max: 20 })
       .withMessage("License number must be between 5 and 20 characters"),
     body("employmentType")
+      .toUpperCase()
       .optional()
       .isIn(["FULL_TIME", "PART_TIME", "CONTRACT"])
       .withMessage("Employment type must be one of: FULL_TIME, PART_TIME, CONTRACT"),
