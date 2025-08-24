@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from "@prisma/client";
 
 let prisma: PrismaClient;
 
@@ -7,12 +7,12 @@ declare global {
 }
 
 // Prevent multiple instances of Prisma Client in development
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV === "production") {
   prisma = new PrismaClient();
 } else {
   if (!global.__prisma) {
     global.__prisma = new PrismaClient({
-      log: ['query', 'info', 'warn', 'error'],
+      log: ["query", "info", "warn", "error"],
     });
   }
   prisma = global.__prisma;
