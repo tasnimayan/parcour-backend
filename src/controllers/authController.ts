@@ -6,6 +6,7 @@ import jwt, { SignOptions } from "jsonwebtoken";
 import { ResponseHandler } from "../utils/response";
 import { Logger } from "../utils/logger";
 import config from "../config/env";
+import { AuthRequest } from "../types";
 
 interface SignupRequest {
   email: string;
@@ -431,5 +432,55 @@ export const getProfile = async (req: Request, res: Response): Promise<void> => 
   } catch (error) {
     Logger.error("Get profile error:", error);
     ResponseHandler.serverError(res, "Failed to retrieve profile");
+  }
+};
+
+// Get current user session
+export const getSessionUser = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+
+    if (!userId) {
+      ResponseHandler.unauthorized(res, "User not found");
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        customer: {
+          select: {
+            fullName: true,
+          },
+        },
+        agent: {
+          select: {
+            fullName: true,
+          },
+        },
+        admin: {
+          select: {
+            fullName: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      ResponseHandler.notFound(res, "User not found");
+      return;
+    }
+
+    ResponseHandler.success(res, "Profile retrieved successfully", {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      fullName: user.customer?.fullName || user.agent?.fullName || user.admin?.fullName,
+    });
+  } catch (error) {
+    Logger.error("Get session user error:", error);
+    ResponseHandler.serverError(res, "Failed to retrieve user");
   }
 };

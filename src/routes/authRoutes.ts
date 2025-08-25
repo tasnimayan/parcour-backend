@@ -24,4 +24,6 @@ router.post("/logout", authenticate, authController.logout);
 
 router.get("/profile", authenticate, authController.getProfile);
 
+router.get("/session", authenticate, authController.getSessionUser);
+
 export default router;
