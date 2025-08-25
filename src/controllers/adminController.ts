@@ -22,7 +22,7 @@ export const assignAgentToParcel = async (req: AuthRequest, res: Response) => {
       where: { id: agentId },
     });
 
-    if (!agent || agent.role !== UserRole.AGENT) {
+    if (!agent || agent.role !== UserRole.agent) {
       ResponseHandler.notFound(res, "Agent not found or invalid role");
       return;
     }
@@ -51,8 +51,8 @@ export const assignAgentToParcel = async (req: AuthRequest, res: Response) => {
       });
 
       const parcelStatus = await prisma.parcel.update({
-        where: { id: parcelId, status: { in: [ParcelStatus.PENDING, ParcelStatus.ASSIGNED] } },
-        data: { status: ParcelStatus.ASSIGNED },
+        where: { id: parcelId, status: { in: [ParcelStatus.pending, ParcelStatus.assigned] } },
+        data: { status: ParcelStatus.assigned },
         select: { updatedAt: true },
       });
 
@@ -72,24 +72,41 @@ export const getAgentsList = async (req: AuthRequest, res: Response): Promise<vo
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
+    const search = req.query.search as string;
+
+    let whereClause: any = {};
+    if (search) {
+      whereClause.OR = [
+        { fullName: { contains: search, mode: "insensitive" } },
+        { phone: { contains: search, mode: "insensitive" } },
+        { user: { email: { contains: search, mode: "insensitive" } } },
+      ];
+    }
 
     const [agents, total] = await Promise.all([
       prisma.agent.findMany({
+        where: whereClause,
         skip,
         take: limit,
-        include: { user: { select: { id: true, email: true } } },
+        select: {
+          userId: true,
+          fullName: true,
+          phone: true,
+          user: {
+            select: {
+              email: true,
+            },
+          },
+        },
       }),
-      prisma.agent.count(),
+      prisma.agent.count({ where: whereClause }),
     ]);
 
-    ResponseHandler.success(res, "Agents list fetched successfully", {
-      data: agents,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+    ResponseHandler.success(res, "Agents list fetched successfully", agents, 200, {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
     Logger.error("Get agents list error:", error);
@@ -101,7 +118,7 @@ export const getAgentsList = async (req: AuthRequest, res: Response): Promise<vo
 export const getUsersList = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userRole = req.user?.role;
-    if (userRole !== UserRole.ADMIN) {
+    if (userRole !== UserRole.admin) {
       ResponseHandler.forbidden(res, "Only admin can view users");
       return;
     }
@@ -137,6 +154,7 @@ export const getUsersList = async (req: AuthRequest, res: Response): Promise<voi
           id: true,
           email: true,
           role: true,
+          status: true,
           createdAt: true,
           customer: {
             select: {
@@ -171,17 +189,69 @@ export const getUsersList = async (req: AuthRequest, res: Response): Promise<voi
       };
     });
 
-    ResponseHandler.success(res, "Users list fetched successfully", {
-      data: transformedUsers,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+    ResponseHandler.success(res, "Users list fetched successfully", transformedUsers, 200, {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
     Logger.error("Get users list error:", error);
     ResponseHandler.serverError(res, "Failed to fetch users");
+  }
+};
+
+// Get parcel statistics (Admin only)
+export const getAdminStats = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userRole = req.user?.role;
+
+    if (userRole !== UserRole.admin) {
+      ResponseHandler.forbidden(res, "Only admins can access parcel statistics");
+      return;
+    }
+
+    const [
+      totalUsers,
+      totalParcels,
+      todayBookings,
+      pendingParcels,
+      assignedParcels,
+      inTransitParcels,
+      deliveredParcels,
+      failedParcels,
+    ] = await Promise.all([
+      prisma.user.count(),
+      prisma.parcel.count(),
+      prisma.parcel.count({
+        where: {
+          createdAt: {
+            gte: new Date(new Date().setHours(0, 0, 0, 0)),
+            lt: new Date(new Date().setHours(23, 59, 59, 999)),
+          },
+        },
+      }),
+      prisma.parcel.count({ where: { status: ParcelStatus.pending } }),
+      prisma.parcel.count({ where: { status: ParcelStatus.assigned } }),
+      prisma.parcel.count({ where: { status: ParcelStatus.in_transit } }),
+      prisma.parcel.count({ where: { status: ParcelStatus.delivered } }),
+      prisma.parcel.count({ where: { status: ParcelStatus.failed } }),
+    ]);
+
+    const stats = {
+      totalUsers,
+      totalParcels,
+      todayBookings,
+      pendingParcels,
+      assignedParcels,
+      inTransitParcels,
+      deliveredParcels,
+      failedParcels,
+    };
+
+    ResponseHandler.success(res, "Parcel statistics retrieved successfully", stats);
+  } catch (error) {
+    Logger.error("Get parcel stats error:", error);
+    ResponseHandler.serverError(res, "Failed to retrieve parcel statistics");
   }
 };

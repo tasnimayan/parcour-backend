@@ -10,6 +10,6 @@ const router = Router();
 router.use(authenticate);
 
 // Public routes
-router.post("/location", authorize([UserRole.AGENT]), agentController.updateAgentLocation);
+router.post("/location", authorize([UserRole.agent]), agentController.updateAgentLocation);
 
 export default router;

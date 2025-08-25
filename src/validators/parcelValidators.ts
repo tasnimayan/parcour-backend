@@ -34,9 +34,21 @@ export const parcelValidators = {
       .isFloat({ min: -180, max: 180 })
       .withMessage("Delivery longitude must be between -180 and 180"),
 
+    body("recipientName")
+      .isLength({ min: 3, max: 100 })
+      .withMessage("Recipient name must be between 3 and 100 characters"),
+
+    body("recipientPhone")
+      .isLength({ min: 10, max: 15 })
+      .withMessage("Recipient phone must be between 10 and 15 characters"),
+
     body("parcelType")
       .isIn(["document", "package", "fragile", "electronics", "clothing", "food", "medicine", "other"])
       .withMessage("Invalid parcel type"),
+
+    body("serviceType").isIn(["standard", "express", "urgent"]).withMessage("Invalid service type"),
+
+    body("priorityType").isIn(["low", "medium", "high", "urgent"]).withMessage("Invalid priority type"),
 
     body("parcelSize")
       .isIn(["small", "medium", "large", "extra_large"])
@@ -45,14 +57,14 @@ export const parcelValidators = {
     body("parcelWeight").optional().isFloat({ min: 0.01 }).withMessage("Parcel weight must be greater than 0"),
 
     body("paymentType")
-      .isIn(["COD", "PREPAID", "ONLINE"])
-      .withMessage("Payment type must be one of: COD, PREPAID, ONLINE"),
+      .isIn(["cod", "prepaid", "online"])
+      .withMessage("Payment type must be one of: cod, prepaid, online"),
 
     body("codAmount").optional().isFloat({ min: 0.01 }).withMessage("COD amount must be greater than 0"),
 
     // Custom validation for COD amount
     body("codAmount").custom((value, { req }) => {
-      if (req.body.paymentType === "COD" && (!value || value <= 0)) {
+      if (req.body.paymentType === "cod" && (!value || value <= 0)) {
         throw new Error("COD amount is required and must be greater than 0 for COD payments");
       }
       return true;
@@ -104,14 +116,14 @@ export const parcelValidators = {
 
     body("paymentType")
       .optional()
-      .isIn(["COD", "PREPAID", "ONLINE"])
-      .withMessage("Payment type must be one of: COD, PREPAID, ONLINE"),
+      .isIn(["cod", "prepaid", "online"])
+      .withMessage("Payment type must be one of: cod, prepaid, online"),
 
     body("codAmount").optional().isFloat({ min: 0.01 }).withMessage("COD amount must be greater than 0"),
 
     // Custom validation for COD amount
     body("codAmount").custom((value, { req }) => {
-      if (req.body.paymentType === "COD" && (!value || value <= 0)) {
+      if (req.body.paymentType === "cod" && (!value || value <= 0)) {
         throw new Error("COD amount is required and must be greater than 0 for COD payments");
       }
       return true;
@@ -121,7 +133,7 @@ export const parcelValidators = {
   // Update status validation
   updateStatus: [
     body("status")
-      .isIn(["PENDING", "ASSIGNED", "PICKED_UP", "IN_TRANSIT", "DELIVERED", "FAILED"])
+      .isIn(["pending", "assigned", "picked_up", "in_transit", "delivered", "failed"])
       .withMessage("Invalid parcel status"),
   ],
 
@@ -133,10 +145,10 @@ export const parcelValidators = {
 
     query("status")
       .optional()
-      .isIn(["PENDING", "ASSIGNED", "PICKED_UP", "IN_TRANSIT", "DELIVERED", "FAILED"])
+      .isIn(["pending", "assigned", "picked_up", "in_transit", "delivered", "failed"])
       .withMessage("Invalid status filter"),
 
-    query("paymentType").optional().isIn(["COD", "PREPAID", "ONLINE"]).withMessage("Invalid payment type filter"),
+    query("paymentType").optional().isIn(["cod", "prepaid", "online"]).withMessage("Invalid payment type filter"),
 
     query("parcelType")
       .optional()

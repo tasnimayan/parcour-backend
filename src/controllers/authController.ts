@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import { UserRole, UserStatus } from "@prisma/client";
+import { Gender, UserRole, UserStatus } from "@prisma/client";
 import prisma from "../config/database";
 import jwt, { SignOptions } from "jsonwebtoken";
 import { ResponseHandler } from "../utils/response";
@@ -17,7 +17,7 @@ interface SignupRequest {
   altPhone?: string;
   governmentId?: string;
   dob?: string;
-  gender?: "MALE" | "FEMALE";
+  gender?: Gender;
   vehicleType?: string;
   vehicleNumber?: string;
   licenseNo?: string;
@@ -59,7 +59,7 @@ export const customerSignup = async (req: Request, res: Response): Promise<void>
         data: {
           email,
           password: hashedPassword,
-          role: UserRole.CUSTOMER,
+          role: UserRole.customer,
         },
       });
 
@@ -141,7 +141,7 @@ export const agentSignup = async (req: Request, res: Response): Promise<void> =>
         data: {
           email,
           password: hashedPassword,
-          role: UserRole.AGENT,
+          role: UserRole.agent,
         },
       });
 
@@ -220,7 +220,7 @@ export const adminSignup = async (req: Request, res: Response): Promise<void> =>
         data: {
           email,
           password: hashedPassword,
-          role: UserRole.ADMIN,
+          role: UserRole.admin,
         },
       });
 
@@ -284,7 +284,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Check if user is active
-    if (user.status !== UserStatus.ACTIVE) {
+    if (user.status !== UserStatus.active) {
       ResponseHandler.error(res, "Account is suspended or deactivated", undefined, 403);
       return;
     }
@@ -308,7 +308,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     // Prepare role-specific profile data
     let profile: any = {};
     switch (user.role) {
-      case UserRole.CUSTOMER:
+      case UserRole.customer:
         profile = user.customer
           ? {
               fullName: user.customer.fullName,
@@ -318,7 +318,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             }
           : {};
         break;
-      case UserRole.AGENT:
+      case UserRole.agent:
         profile = user.agent
           ? {
               fullName: user.agent.fullName,
@@ -331,7 +331,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             }
           : {};
         break;
-      case UserRole.ADMIN:
+      case UserRole.admin:
         profile = user.admin
           ? {
               fullName: user.admin.fullName,
@@ -407,16 +407,16 @@ export const getProfile = async (req: Request, res: Response): Promise<void> => 
     // Prepare role-specific profile data
     let profile: any = {};
     switch (user.role) {
-      case UserRole.CUSTOMER:
+      case UserRole.customer:
         profile = user.customer;
         break;
-      case UserRole.AGENT:
+      case UserRole.agent:
         profile = {
           ...user.agent,
           currentLocation: user.agent?.location,
         };
         break;
-      case UserRole.ADMIN:
+      case UserRole.admin:
         profile = user.admin;
         break;
     }
@@ -476,7 +476,6 @@ export const getSessionUser = async (req: AuthRequest, res: Response): Promise<v
       id: user.id,
       email: user.email,
       role: user.role,
-      status: user.status,
       fullName: user.customer?.fullName || user.agent?.fullName || user.admin?.fullName,
     });
   } catch (error) {

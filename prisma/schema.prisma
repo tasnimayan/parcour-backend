@@ -9,69 +9,82 @@ datasource db {
 
 // Enums
 enum UserRole {
-  ADMIN
-  AGENT
-  CUSTOMER
+  admin
+  agent
+  customer
 }
 
 enum UserStatus {
-  ACTIVE
-  SUSPENDED
-  DELETED
+  active
+  suspended
+  deleted
 }
 
 enum Gender {
-  MALE
-  FEMALE
+  male
+  female
 }
 
 enum VehicleType {
-  BIKE
-  CAR
-  VAN
-  TRUCK
-  BICYCLE
+  bike
+  car
+  van
+  truck
+  bicycle
 }
 
 enum EmploymentType {
-  FULL_TIME
-  PART_TIME
-  CONTRACT
+  full_time
+  part_time
+  contract
 }
 
 enum AgentLocationStatus {
-  AVAILABLE
-  ON_DELIVERY
-  OFFLINE
+  available
+  on_delivery
+  offline
 }
 
 enum ShiftStatus {
-  SCHEDULED
-  ACTIVE
-  COMPLETED
-  MISSED
+  scheduled
+  active
+  completed
+  missed
 }
 
 enum PaymentType {
-  COD
-  PREPAID
-  ONLINE
+  cod
+  prepaid
+  online
 }
 
 enum ParcelStatus {
-  PENDING
-  ASSIGNED
-  PICKED_UP
-  IN_TRANSIT
-  DELIVERED
-  FAILED
+  pending
+  assigned
+  picked_up
+  in_transit
+  delivered
+  failed
 }
 
 enum PaymentStatus {
-  PENDING
-  PAID
-  FAILED
-  REFUNDED
+  pending
+  paid
+  failed
+  refunded
+}
+
+enum ParcelPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum ParcelService {
+  standard
+  express
+  urgent
 }
 
 // Base User model
@@ -80,7 +93,7 @@ model User {
   email     String     @unique
   password  String     @map("password_hash")
   role      UserRole
-  status    UserStatus @default(ACTIVE)
+  status    UserStatus @default(active)
   lastLogin DateTime?  @map("last_login")
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @updatedAt @map("updated_at")
@@ -175,7 +188,7 @@ model AgentLocation {
   latitude  Decimal             @db.Decimal(9, 6)
   longitude Decimal             @db.Decimal(9, 6)
   updatedAt DateTime            @updatedAt @map("updated_at")
-  status    AgentLocationStatus @default(AVAILABLE)
+  status    AgentLocationStatus @default(available)
 
   @@map("agent_locations")
 }
@@ -210,24 +223,31 @@ model Admin {
 
 // Parcel model
 model Parcel {
-  id              String       @id @default(uuid())
-  trackingCode    String       @unique @map("tracking_code")
-  customerId      String       @map("customer_id")
-  customer        Customer     @relation(fields: [customerId], references: [userId], onDelete: Cascade)
-  pickupAddress   String       @map("pickup_address") @db.Text
-  pickupLat       Decimal?     @map("pickup_lat") @db.Decimal(9, 6)
-  pickupLng       Decimal?     @map("pickup_lng") @db.Decimal(9, 6)
-  deliveryAddress String       @map("delivery_address") @db.Text
-  deliveryLat     Decimal?     @map("delivery_lat") @db.Decimal(9, 6)
-  deliveryLng     Decimal?     @map("delivery_lng") @db.Decimal(9, 6)
-  parcelType      String       @map("parcel_type")
-  parcelSize      String       @map("parcel_size")
-  parcelWeight    Decimal?     @map("parcel_weight") @db.Decimal(10, 2)
-  paymentType     PaymentType  @map("payment_type")
-  codAmount       Decimal?     @map("cod_amount") @db.Decimal(10, 2)
-  status          ParcelStatus @default(PENDING)
-  createdAt       DateTime     @default(now()) @map("created_at")
-  updatedAt       DateTime     @updatedAt @map("updated_at")
+  id                    String         @id @default(uuid())
+  customerId            String         @map("customer_id")
+  customer              Customer       @relation(fields: [customerId], references: [userId], onDelete: Cascade)
+  trackingCode          String         @unique @map("tracking_code")
+  pickupAddress         String         @map("pickup_address") @db.Text
+  pickupLat             Decimal?       @map("pickup_lat") @db.Decimal(9, 6)
+  pickupLng             Decimal?       @map("pickup_lng") @db.Decimal(9, 6)
+  deliveryAddress       String         @map("delivery_address") @db.Text
+  deliveryLat           Decimal?       @map("delivery_lat") @db.Decimal(9, 6)
+  deliveryLng           Decimal?       @map("delivery_lng") @db.Decimal(9, 6)
+  recipientName         String         @map("recipient_name")
+  recipientPhone        String         @map("recipient_phone")
+  parcelSize            String         @map("parcel_size") // small, medium, large
+  parcelWeight          Decimal?       @map("parcel_weight") @db.Decimal(10, 2)
+  parcelType            String         @map("parcel_type") // parcel, document, etc
+  serviceType           ParcelService  @map("service_type")
+  priorityType          ParcelPriority @map("priority_type")
+  paymentType           PaymentType    @map("payment_type")
+  codAmount             Decimal?       @map("cod_amount") @db.Decimal(10, 2)
+  status                ParcelStatus   @default(pending)
+  note                  String?        @db.Text
+  estimatedDeliveryDate DateTime?      @map("estimated_delivery_date")
+  deliveredAt           DateTime?      @map("delivered_at")
+  createdAt             DateTime       @default(now()) @map("created_at")
+  updatedAt             DateTime       @updatedAt @map("updated_at")
 
   // Relations
   assignment ParcelAssignment?
@@ -271,7 +291,7 @@ model Payment {
   customer      Customer      @relation(fields: [userId], references: [userId], onDelete: Cascade)
   amount        Decimal       @db.Decimal(10, 2)
   paymentType   PaymentType   @map("payment_type")
-  status        PaymentStatus @default(PENDING)
+  status        PaymentStatus @default(pending)
   transactionId String?       @map("transaction_id")
   createdAt     DateTime      @default(now()) @map("created_at")
 

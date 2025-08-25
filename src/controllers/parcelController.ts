@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { ParcelStatus, PaymentType, UserRole } from "@prisma/client";
+import { ParcelPriority, ParcelService, ParcelStatus, PaymentType, UserRole } from "@prisma/client";
 import prisma from "../config/database";
 import { ResponseHandler } from "../utils/response";
 import { Logger } from "../utils/logger";
@@ -12,9 +12,14 @@ interface CreateParcelRequest {
   deliveryAddress: string;
   deliveryLat: number;
   deliveryLng: number;
+  recipientName: string;
+  recipientPhone: string;
   parcelType: string;
   parcelSize: string;
-  paymentType: "COD" | "PREPAID" | "ONLINE";
+  serviceType: ParcelService;
+  priorityType: ParcelPriority;
+  parcelWeight: number;
+  paymentType: PaymentType;
   codAmount?: number;
 }
 
@@ -51,26 +56,26 @@ const generateTrackingCode = (): string => {
 // Helper function to validate status transitions
 const getValidStatusTransitions = (currentStatus: ParcelStatus, userRole: UserRole): ParcelStatus[] => {
   const transitions: Record<ParcelStatus, { [key in UserRole]?: ParcelStatus[] }> = {
-    [ParcelStatus.PENDING]: {
-      [UserRole.ADMIN]: [ParcelStatus.ASSIGNED],
+    [ParcelStatus.pending]: {
+      [UserRole.admin]: [ParcelStatus.assigned],
     },
-    [ParcelStatus.ASSIGNED]: {
-      [UserRole.AGENT]: [ParcelStatus.PICKED_UP],
-      [UserRole.ADMIN]: [ParcelStatus.PICKED_UP, ParcelStatus.PENDING],
+    [ParcelStatus.assigned]: {
+      [UserRole.agent]: [ParcelStatus.picked_up],
+      [UserRole.admin]: [ParcelStatus.picked_up, ParcelStatus.pending],
     },
-    [ParcelStatus.PICKED_UP]: {
-      [UserRole.AGENT]: [ParcelStatus.IN_TRANSIT],
-      [UserRole.ADMIN]: [ParcelStatus.IN_TRANSIT, ParcelStatus.ASSIGNED],
+    [ParcelStatus.picked_up]: {
+      [UserRole.agent]: [ParcelStatus.in_transit],
+      [UserRole.admin]: [ParcelStatus.in_transit, ParcelStatus.assigned],
     },
-    [ParcelStatus.IN_TRANSIT]: {
-      [UserRole.AGENT]: [ParcelStatus.DELIVERED, ParcelStatus.FAILED],
-      [UserRole.ADMIN]: [ParcelStatus.DELIVERED, ParcelStatus.FAILED, ParcelStatus.PICKED_UP],
+    [ParcelStatus.in_transit]: {
+      [UserRole.agent]: [ParcelStatus.delivered, ParcelStatus.failed],
+      [UserRole.admin]: [ParcelStatus.delivered, ParcelStatus.failed, ParcelStatus.picked_up],
     },
-    [ParcelStatus.DELIVERED]: {
-      [UserRole.ADMIN]: [ParcelStatus.IN_TRANSIT], // In case of disputes
+    [ParcelStatus.delivered]: {
+      [UserRole.admin]: [ParcelStatus.in_transit], // In case of disputes
     },
-    [ParcelStatus.FAILED]: {
-      [UserRole.ADMIN]: [ParcelStatus.PENDING, ParcelStatus.ASSIGNED],
+    [ParcelStatus.failed]: {
+      [UserRole.admin]: [ParcelStatus.pending, ParcelStatus.assigned],
     },
   };
 
@@ -83,7 +88,7 @@ export const createParcel = async (req: AuthRequest, res: Response): Promise<voi
     const userId = req.user?.id;
     const userRole = req.user?.role;
 
-    if (userRole !== UserRole.CUSTOMER) {
+    if (userRole !== UserRole.customer) {
       ResponseHandler.forbidden(res, "Only customers can create parcels");
       return;
     }
@@ -95,14 +100,19 @@ export const createParcel = async (req: AuthRequest, res: Response): Promise<voi
       deliveryAddress,
       deliveryLat,
       deliveryLng,
+      recipientName,
+      recipientPhone,
       parcelType,
+      serviceType,
+      priorityType,
+      parcelWeight,
       parcelSize,
       paymentType,
       codAmount,
     }: CreateParcelRequest = req.body;
 
     // Validate COD amount if payment type is COD
-    if (paymentType === "COD" && (!codAmount || codAmount <= 0)) {
+    if (paymentType === "cod" && (!codAmount || codAmount <= 0)) {
       ResponseHandler.error(res, "COD amount is required and must be greater than 0 for COD payments");
       return;
     }
@@ -118,11 +128,16 @@ export const createParcel = async (req: AuthRequest, res: Response): Promise<voi
         deliveryAddress,
         deliveryLat,
         deliveryLng,
+        recipientName,
+        recipientPhone,
         parcelType,
+        serviceType,
+        priorityType,
+        parcelWeight,
         parcelSize,
         paymentType,
-        codAmount: paymentType === "COD" ? codAmount : null,
-        status: ParcelStatus.PENDING,
+        codAmount: paymentType === "cod" ? codAmount : null,
+        status: ParcelStatus.pending,
       },
       include: {
         customer: {
@@ -164,10 +179,10 @@ export const getParcels = async (req: AuthRequest, res: Response): Promise<void>
     // Build where clause based on user role
     let whereClause: any = {};
 
-    if (userRole === UserRole.CUSTOMER) {
+    if (userRole === UserRole.customer) {
       // Customers can only see their own parcels
       whereClause.customerId = userId;
-    } else if (userRole === UserRole.AGENT) {
+    } else if (userRole === UserRole.agent) {
       // Agents can see assigned parcels
       whereClause.assignment = {
         agentId: userId,
@@ -198,12 +213,13 @@ export const getParcels = async (req: AuthRequest, res: Response): Promise<void>
             },
           },
           assignment: {
-            include: {
+            select: {
+              agentId: true,
+              assignedAt: true,
               agent: {
                 select: {
                   fullName: true,
                   phone: true,
-                  vehicleType: true,
                 },
               },
             },
@@ -288,12 +304,12 @@ export const getParcelById = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     // Check access permissions
-    if (userRole === UserRole.CUSTOMER && parcel.customerId !== userId) {
+    if (userRole === UserRole.customer && parcel.customerId !== userId) {
       ResponseHandler.forbidden(res, "You can only access your own parcels");
       return;
     }
 
-    if (userRole === UserRole.AGENT && parcel.assignment?.agentId !== userId) {
+    if (userRole === UserRole.agent && parcel.assignment?.agentId !== userId) {
       ResponseHandler.forbidden(res, "You can only access assigned parcels");
       return;
     }
@@ -312,7 +328,7 @@ export const updateParcel = async (req: AuthRequest, res: Response): Promise<voi
     const userId = req.user?.id;
     const userRole = req.user?.role;
 
-    if (userRole !== UserRole.CUSTOMER) {
+    if (userRole !== UserRole.customer) {
       ResponseHandler.forbidden(res, "Only customers can update parcel details");
       return;
     }
@@ -331,7 +347,7 @@ export const updateParcel = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    if (parcel.status !== ParcelStatus.PENDING) {
+    if (parcel.status !== ParcelStatus.pending) {
       ResponseHandler.error(res, "Parcel can only be updated when status is PENDING");
       return;
     }
@@ -364,7 +380,7 @@ export const updateParcel = async (req: AuthRequest, res: Response): Promise<voi
     };
 
     // Validate COD amount if payment type is being changed to COD
-    if (paymentType === "COD" && (!codAmount || codAmount <= 0)) {
+    if (paymentType === "cod" && (!codAmount || codAmount <= 0)) {
       ResponseHandler.error(res, "COD amount is required and must be greater than 0 for COD payments");
       return;
     }
@@ -400,7 +416,7 @@ export const updateParcelStatus = async (req: AuthRequest, res: Response): Promi
     const userRole = req.user?.role;
     const { status }: UpdateParcelStatusRequest = req.body;
 
-    if (userRole !== UserRole.ADMIN && userRole !== UserRole.AGENT) {
+    if (userRole !== UserRole.admin && userRole !== UserRole.agent) {
       ResponseHandler.forbidden(res, "Parcel status update permission denied.");
       return;
     }
@@ -418,7 +434,7 @@ export const updateParcelStatus = async (req: AuthRequest, res: Response): Promi
     }
 
     // Agents can only update status of assigned parcels
-    if (userRole === UserRole.AGENT && parcel.assignment?.agentId !== userId) {
+    if (userRole === UserRole.agent && parcel.assignment?.agentId !== userId) {
       ResponseHandler.forbidden(res, "You can only update status of assigned parcels");
       return;
     }
@@ -481,7 +497,7 @@ export const deleteParcel = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    if (parcel.status !== ParcelStatus.PENDING) {
+    if (parcel.status !== ParcelStatus.pending) {
       ResponseHandler.error(res, "Parcel can only be deleted when status is PENDING");
       return;
     }
@@ -502,7 +518,7 @@ export const getParcelStats = async (req: AuthRequest, res: Response): Promise<v
   try {
     const userRole = req.user?.role;
 
-    if (userRole !== UserRole.ADMIN) {
+    if (userRole !== UserRole.customer) {
       ResponseHandler.forbidden(res, "Only admins can access parcel statistics");
       return;
     }
@@ -518,13 +534,13 @@ export const getParcelStats = async (req: AuthRequest, res: Response): Promise<v
       prepaidParcels,
     ] = await Promise.all([
       prisma.parcel.count(),
-      prisma.parcel.count({ where: { status: ParcelStatus.PENDING } }),
-      prisma.parcel.count({ where: { status: ParcelStatus.ASSIGNED } }),
-      prisma.parcel.count({ where: { status: ParcelStatus.IN_TRANSIT } }),
-      prisma.parcel.count({ where: { status: ParcelStatus.DELIVERED } }),
-      prisma.parcel.count({ where: { status: ParcelStatus.FAILED } }),
-      prisma.parcel.count({ where: { paymentType: "COD" } }),
-      prisma.parcel.count({ where: { paymentType: "PREPAID" } }),
+      prisma.parcel.count({ where: { status: ParcelStatus.pending } }),
+      prisma.parcel.count({ where: { status: ParcelStatus.assigned } }),
+      prisma.parcel.count({ where: { status: ParcelStatus.in_transit } }),
+      prisma.parcel.count({ where: { status: ParcelStatus.delivered } }),
+      prisma.parcel.count({ where: { status: ParcelStatus.failed } }),
+      prisma.parcel.count({ where: { paymentType: "cod" } }),
+      prisma.parcel.count({ where: { paymentType: "prepaid" } }),
     ]);
 
     const stats = {

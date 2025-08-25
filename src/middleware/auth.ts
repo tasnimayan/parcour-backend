@@ -27,7 +27,7 @@ export const authenticate = async (
       select: { id: true, email: true, role: true, status: true },
     });
 
-    if (!user || user.status !== UserStatus.ACTIVE) {
+    if (!user || user.status !== UserStatus.active) {
       ResponseHandler.unauthorized(res, "Invalid or inactive user");
       return;
     }

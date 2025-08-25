@@ -13,7 +13,7 @@ router.use(authenticate);
 // Create parcel (Customer only)
 router.post(
   "/",
-  authorize([UserRole.CUSTOMER]),
+  authorize([UserRole.customer]),
   parcelValidators.createParcel,
   handleValidationErrors,
   parcelController.createParcel
@@ -23,7 +23,7 @@ router.post(
 router.get("/", parcelValidators.listParcels, handleValidationErrors, parcelController.getParcels);
 
 // Get parcel statistics (Admin only)
-router.get("/stats", authorize([UserRole.ADMIN]), parcelController.getParcelStats);
+router.get("/stats", authorize([UserRole.admin]), parcelController.getParcelStats);
 
 // Get single parcel by ID
 router.get("/:id", parcelValidators.parcelId, handleValidationErrors, parcelController.getParcelById);
@@ -31,7 +31,7 @@ router.get("/:id", parcelValidators.parcelId, handleValidationErrors, parcelCont
 // Update parcel details (Customer only, PENDING status only)
 router.put(
   "/:id",
-  authorize([UserRole.CUSTOMER]),
+  authorize([UserRole.customer]),
   parcelValidators.parcelId,
   parcelValidators.updateParcel,
   handleValidationErrors,
@@ -41,7 +41,7 @@ router.put(
 // Update parcel status (Admin and Agent only)
 router.patch(
   "/:id/status",
-  authorize([UserRole.ADMIN, UserRole.AGENT]),
+  authorize([UserRole.admin, UserRole.agent]),
   parcelValidators.parcelId,
   parcelValidators.updateStatus,
   handleValidationErrors,
@@ -51,7 +51,7 @@ router.patch(
 // Delete parcel (Customer only, PENDING status only)
 router.delete(
   "/:id",
-  authorize([UserRole.CUSTOMER]),
+  authorize([UserRole.customer]),
   parcelValidators.parcelId,
   handleValidationErrors,
   parcelController.deleteParcel
