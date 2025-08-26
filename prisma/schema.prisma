@@ -239,11 +239,12 @@ model Parcel {
   parcelWeight          Decimal?       @map("parcel_weight") @db.Decimal(10, 2)
   parcelType            String         @map("parcel_type") // parcel, document, etc
   serviceType           ParcelService  @map("service_type")
-  priorityType          ParcelPriority @map("priority_type")
+  priorityType          ParcelPriority @default(low) @map("priority_type")
   paymentType           PaymentType    @map("payment_type")
   codAmount             Decimal?       @map("cod_amount") @db.Decimal(10, 2)
   status                ParcelStatus   @default(pending)
   note                  String?        @db.Text
+  // pickedUpAt            DateTime?      @map("picked_up_at")
   estimatedDeliveryDate DateTime?      @map("estimated_delivery_date")
   deliveredAt           DateTime?      @map("delivered_at")
   createdAt             DateTime       @default(now()) @map("created_at")

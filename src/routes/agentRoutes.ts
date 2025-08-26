@@ -11,5 +11,6 @@ router.use(authenticate);
 
 // Public routes
 router.post("/location", authorize([UserRole.agent]), agentController.updateAgentLocation);
+router.get("/stats", authorize([UserRole.agent]), agentController.getAgentParcelStats);
 
 export default router;

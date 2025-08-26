@@ -17,10 +17,10 @@ interface CreateParcelRequest {
   parcelType: string;
   parcelSize: string;
   serviceType: ParcelService;
-  priorityType: ParcelPriority;
   parcelWeight: number;
   paymentType: PaymentType;
   codAmount?: number;
+  note?: string;
 }
 
 interface UpdateParcelRequest {
@@ -104,11 +104,11 @@ export const createParcel = async (req: AuthRequest, res: Response): Promise<voi
       recipientPhone,
       parcelType,
       serviceType,
-      priorityType,
       parcelWeight,
       parcelSize,
       paymentType,
       codAmount,
+      note,
     }: CreateParcelRequest = req.body;
 
     // Validate COD amount if payment type is COD
@@ -132,20 +132,13 @@ export const createParcel = async (req: AuthRequest, res: Response): Promise<voi
         recipientPhone,
         parcelType,
         serviceType,
-        priorityType,
+        priorityType: ParcelPriority.low,
         parcelWeight,
         parcelSize,
         paymentType,
         codAmount: paymentType === "cod" ? codAmount : null,
+        note,
         status: ParcelStatus.pending,
-      },
-      include: {
-        customer: {
-          select: {
-            fullName: true,
-            phone: true,
-          },
-        },
       },
     });
 
@@ -557,6 +550,89 @@ export const getParcelStats = async (req: AuthRequest, res: Response): Promise<v
         prepaid: prepaidParcels,
       },
       deliveryRate: totalParcels > 0 ? ((deliveredParcels / totalParcels) * 100).toFixed(2) : "0.00",
+    };
+
+    ResponseHandler.success(res, "Parcel statistics retrieved successfully", stats);
+  } catch (error) {
+    Logger.error("Get parcel stats error:", error);
+    ResponseHandler.serverError(res, "Failed to retrieve parcel statistics");
+  }
+};
+
+export const getParcelByTrackingCode = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+
+    const parcel = await prisma.parcel.findUnique({
+      where: { trackingCode: id },
+      include: {
+        assignment: {
+          include: {
+            agent: {
+              select: {
+                fullName: true,
+                phone: true,
+                vehicleType: true,
+                vehicleNumber: true,
+                location: {
+                  select: {
+                    latitude: true,
+                    longitude: true,
+                    status: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!parcel) {
+      ResponseHandler.notFound(res, "Parcel not found");
+      return;
+    }
+
+    // Check access permissions
+    if (userRole === UserRole.customer && parcel.customerId !== userId) {
+      ResponseHandler.forbidden(res, "You can only access your own parcels");
+      return;
+    }
+
+    if (userRole === UserRole.agent && parcel.assignment?.agentId !== userId) {
+      ResponseHandler.forbidden(res, "You can only access assigned parcels");
+      return;
+    }
+
+    ResponseHandler.success(res, "Parcel retrieved successfully", parcel);
+  } catch (error) {
+    Logger.error("Get parcel by ID error:", error);
+    ResponseHandler.serverError(res, "Failed to retrieve parcel");
+  }
+};
+
+export const getCustomerStats = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userRole = req.user?.role;
+    const userId = req.user?.id;
+
+    if (userRole !== UserRole.customer) {
+      ResponseHandler.forbidden(res, "Only customer can access parcel statistics");
+      return;
+    }
+
+    const [totalParcels, inTransitParcels, deliveredParcels] = await Promise.all([
+      prisma.parcel.count({ where: { customerId: userId } }),
+      prisma.parcel.count({ where: { customerId: userId, status: ParcelStatus.in_transit } }),
+      prisma.parcel.count({ where: { customerId: userId, status: ParcelStatus.delivered } }),
+    ]);
+
+    const stats = {
+      totalParcels: totalParcels,
+      totalInTransit: inTransitParcels,
+      totalDelivered: deliveredParcels,
     };
 
     ResponseHandler.success(res, "Parcel statistics retrieved successfully", stats);

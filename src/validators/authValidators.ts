@@ -41,7 +41,11 @@ export const authValidators = {
       return true;
     }),
 
-  gender: body("gender").optional().isIn(["MALE", "FEMALE"]).withMessage("Gender must be either MALE or FEMALE"),
+  gender: body("gender")
+    .optional()
+    .toLowerCase()
+    .isIn(["male", "female"])
+    .withMessage("Gender must be either male or female"),
 
   // Customer-specific validations
   customerSignup: [
@@ -80,10 +84,10 @@ export const authValidators = {
         return true;
       }),
     body("gender")
-      .toUpperCase()
+      .toLowerCase()
       .optional()
-      .isIn(["MALE", "FEMALE"])
-      .withMessage("Gender must be either MALE or FEMALE"),
+      .isIn(["male", "female"])
+      .withMessage("Gender must be either male or female"),
   ],
 
   // Agent-specific validations
@@ -123,9 +127,9 @@ export const authValidators = {
         return true;
       }),
     body("vehicleType")
-      .toUpperCase()
-      .isIn(["BIKE", "CAR", "VAN", "TRUCK", "BICYCLE"])
-      .withMessage("Vehicle type must be one of: BIKE, CAR, VAN, TRUCK, BICYCLE"),
+      .toLowerCase()
+      .isIn(["bike", "car", "van", "truck", "bicycle"])
+      .withMessage("Vehicle type must be one of: bike, car, van, truck, bicycle"),
     body("vehicleNumber")
       .optional()
       .isLength({ min: 3, max: 15 })
@@ -135,10 +139,10 @@ export const authValidators = {
       .isLength({ min: 5, max: 20 })
       .withMessage("License number must be between 5 and 20 characters"),
     body("employmentType")
-      .toUpperCase()
+      .toLowerCase()
       .optional()
-      .isIn(["FULL_TIME", "PART_TIME", "CONTRACT"])
-      .withMessage("Employment type must be one of: FULL_TIME, PART_TIME, CONTRACT"),
+      .isIn(["full_time", "part_time", "contract"])
+      .withMessage("Employment type must be one of: full_time, part_time, contract"),
   ],
 
   // Admin-specific validations

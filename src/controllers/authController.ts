@@ -472,7 +472,7 @@ export const getSessionUser = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    ResponseHandler.success(res, "Profile retrieved successfully", {
+    ResponseHandler.success(res, "Session user successfully retrieved", {
       id: user.id,
       email: user.email,
       role: user.role,
@@ -480,6 +480,6 @@ export const getSessionUser = async (req: AuthRequest, res: Response): Promise<v
     });
   } catch (error) {
     Logger.error("Get session user error:", error);
-    ResponseHandler.serverError(res, "Failed to retrieve user");
+    ResponseHandler.serverError(res, "Failed to retrieve session user");
   }
 };
