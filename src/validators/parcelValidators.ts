@@ -42,16 +42,9 @@ export const parcelValidators = {
       .isLength({ min: 10, max: 15 })
       .withMessage("Recipient phone must be between 10 and 15 characters"),
 
-    body("parcelType")
-      .isIn(["document", "package", "fragile", "electronics", "clothing", "food", "medicine", "other"])
-      .withMessage("Invalid parcel type"),
-
     body("serviceType").toLowerCase().isIn(["standard", "express", "urgent"]).withMessage("Invalid service type"),
 
-    body("parcelSize")
-      .toLowerCase()
-      .isIn(["small", "medium", "large", "extra_large"])
-      .withMessage("Parcel size must be one of: small, medium, large, extra_large"),
+    // body("parcelSize").toLowerCase().withMessage("Parcel size is required"),
 
     body("parcelWeight").optional().isFloat({ min: 0.01 }).withMessage("Parcel weight must be greater than 0"),
 

@@ -56,6 +56,14 @@ export const assignAgentToParcel = async (req: AuthRequest, res: Response) => {
         select: { updatedAt: true },
       });
 
+      const activityData = {
+        parcelId: parcelId,
+        action: "assigned",
+        activityBy: userId,
+        role: UserRole.admin,
+      };
+      await prisma.parcelActivity.create({ data: activityData });
+
       return { assignment, parcelStatus };
     });
 

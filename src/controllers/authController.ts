@@ -1,29 +1,13 @@
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import { Gender, UserRole, UserStatus } from "@prisma/client";
+import { UserRole, UserStatus, VehicleType } from "@prisma/client";
 import prisma from "../config/database";
 import jwt, { SignOptions } from "jsonwebtoken";
 import { ResponseHandler } from "../utils/response";
 import { Logger } from "../utils/logger";
 import config from "../config/env";
 import { AuthRequest } from "../types";
-
-interface SignupRequest {
-  email: string;
-  password: string;
-  role: UserRole;
-  fullName: string;
-  phone: string;
-  altPhone?: string;
-  governmentId?: string;
-  dob?: string;
-  gender?: Gender;
-  vehicleType?: string;
-  vehicleNumber?: string;
-  licenseNo?: string;
-  employmentType?: string;
-  department?: string;
-}
+import { AdminSignup, AgentSignup, CustomerSignup } from "../types/auth";
 
 interface LoginRequest {
   email: string;
@@ -32,13 +16,15 @@ interface LoginRequest {
 
 // Generate JWT token
 const generateToken = (userId: string, email: string, role: UserRole): string => {
-  return jwt.sign({ userId, email, role }, config.JWT_SECRET, { expiresIn: config.JWT_EXPIRES_IN } as SignOptions);
+  return jwt.sign({ userId, email, role }, config.JWT_SECRET, {
+    expiresIn: config.JWT_EXPIRES_IN,
+  } as SignOptions);
 };
 
 // Customer Signup
 export const customerSignup = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password, fullName, phone, altPhone, governmentId, dob, gender }: SignupRequest = req.body;
+    const { email, password, fullName, phone, altPhone, governmentId, dob, gender, address }: CustomerSignup = req.body;
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -71,7 +57,20 @@ export const customerSignup = async (req: Request, res: Response): Promise<void>
           altPhone,
           governmentId,
           dob: dob ? new Date(dob) : null,
-          gender: gender || null,
+          gender,
+          defaultAddress: `${address.address}, ${address.city}, ${address.postalCode}, ${address.country}`,
+          addresses: {
+            create: {
+              label: address.label,
+              address: address.address,
+              city: address.city,
+              postalCode: address.postalCode,
+              country: address.country,
+              latitude: address.latitude,
+              longitude: address.longitude,
+              isDefault: true,
+            },
+          },
         },
       });
 
@@ -120,7 +119,7 @@ export const agentSignup = async (req: Request, res: Response): Promise<void> =>
       vehicleNumber,
       licenseNo,
       employmentType,
-    }: SignupRequest = req.body;
+    }: AgentSignup = req.body;
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -153,7 +152,7 @@ export const agentSignup = async (req: Request, res: Response): Promise<void> =>
           altPhone,
           governmentId,
           dob: dob ? new Date(dob) : null,
-          vehicleType: vehicleType as any,
+          vehicleType: vehicleType as VehicleType,
           vehicleNumber,
           licenseNo,
           employmentType: employmentType as any,
@@ -196,7 +195,7 @@ export const agentSignup = async (req: Request, res: Response): Promise<void> =>
 // Admin Signup (restricted - only for system setup)
 export const adminSignup = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password, fullName, department }: SignupRequest = req.body;
+    const { email, password, fullName, department }: AdminSignup = req.body;
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -439,7 +438,6 @@ export const getProfile = async (req: Request, res: Response): Promise<void> => 
 export const getSessionUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
-    const userRole = req.user?.role;
 
     if (!userId) {
       ResponseHandler.unauthorized(res, "User not found");

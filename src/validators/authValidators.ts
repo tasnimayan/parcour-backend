@@ -18,17 +18,22 @@ export const authValidators = {
     .matches(/^[a-zA-Z\s]+$/)
     .withMessage("Full name can only contain letters and spaces"),
 
-  phone: body("phone").isMobilePhone("any").withMessage("Valid phone number is required"),
+  phone: body("phone").trim().isMobilePhone("any").withMessage("Valid phone number is required"),
 
-  altPhone: body("altPhone").optional().isMobilePhone("any").withMessage("Valid alternative phone number is required"),
+  altPhone: body("altPhone")
+    .trim()
+    .optional({ checkFalsy: true, nullable: true })
+    .isMobilePhone("any")
+    .withMessage("Valid alternative phone number is required"),
 
   governmentId: body("governmentId")
-    .optional()
+    .trim()
+    .optional({ checkFalsy: true, nullable: true })
     .isLength({ min: 5, max: 20 })
     .withMessage("Government ID must be between 5 and 20 characters"),
 
   dob: body("dob")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isISO8601()
     .withMessage("Valid date of birth is required (YYYY-MM-DD format)")
     .custom((value) => {
@@ -62,10 +67,15 @@ export const authValidators = {
       .withMessage("Full name must be between 2 and 100 characters")
       .matches(/^[a-zA-Z\s]+$/)
       .withMessage("Full name can only contain letters and spaces"),
-    body("phone").isMobilePhone("any").withMessage("Valid phone number is required"),
-    body("altPhone").optional().isMobilePhone("any").withMessage("Valid alternative phone number is required"),
+    body("phone").trim().isMobilePhone("any").withMessage("Valid phone number is required"),
+    body("altPhone")
+      .trim()
+      .optional({ checkFalsy: true, nullable: true })
+      .isMobilePhone("any")
+      .withMessage("Valid alternative phone number is required"),
     body("governmentId")
-      .optional()
+      .trim()
+      .optional({ checkFalsy: true, nullable: true })
       .isLength({ min: 5, max: 20 })
       .withMessage("Government ID must be between 5 and 20 characters"),
     body("dob")
@@ -101,14 +111,20 @@ export const authValidators = {
         "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
       ),
     body("fullName")
+      .trim()
       .isLength({ min: 2, max: 100 })
       .withMessage("Full name must be between 2 and 100 characters")
       .matches(/^[a-zA-Z\s]+$/)
       .withMessage("Full name can only contain letters and spaces"),
-    body("phone").isMobilePhone("any").withMessage("Valid phone number is required"),
-    body("altPhone").optional().isMobilePhone("any").withMessage("Valid alternative phone number is required"),
+    body("phone").trim().isMobilePhone("any").withMessage("Valid phone number is required"),
+    body("altPhone")
+      .trim()
+      .optional({ checkFalsy: true, nullable: true })
+      .isMobilePhone("any")
+      .withMessage("Valid alternative phone number is required"),
     body("governmentId")
-      .optional()
+      .trim()
+      .optional({ checkFalsy: true, nullable: true })
       .isLength({ min: 5, max: 20 })
       .withMessage("Government ID must be between 5 and 20 characters"),
     body("dob")
@@ -131,11 +147,11 @@ export const authValidators = {
       .isIn(["bike", "car", "van", "truck", "bicycle"])
       .withMessage("Vehicle type must be one of: bike, car, van, truck, bicycle"),
     body("vehicleNumber")
-      .optional()
+      .optional({ checkFalsy: true, nullable: true })
       .isLength({ min: 3, max: 15 })
       .withMessage("Vehicle number must be between 3 and 15 characters"),
     body("licenseNo")
-      .optional()
+      .optional({ checkFalsy: true, nullable: true })
       .isLength({ min: 5, max: 20 })
       .withMessage("License number must be between 5 and 20 characters"),
     body("employmentType")

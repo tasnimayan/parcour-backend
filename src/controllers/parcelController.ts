@@ -39,6 +39,7 @@ interface UpdateParcelRequest {
 
 interface UpdateParcelStatusRequest {
   status: ParcelStatus;
+  note?: string;
 }
 
 const generateTrackingCode = (): string => {
@@ -141,6 +142,15 @@ export const createParcel = async (req: AuthRequest, res: Response): Promise<voi
         status: ParcelStatus.pending,
       },
     });
+
+    const activityData = {
+      parcelId: parcel.id,
+      action: "created",
+      activityBy: userId,
+      role: userRole,
+    };
+
+    await prisma.parcelActivity.create({ data: activityData });
 
     ResponseHandler.success(res, "Parcel created successfully", parcel, 201);
   } catch (error) {
@@ -328,6 +338,16 @@ export const updateParcel = async (req: AuthRequest, res: Response): Promise<voi
 
     const parcel = await prisma.parcel.findUnique({
       where: { id },
+      select: {
+        id: true,
+        status: true,
+        customerId: true,
+        assignment: {
+          select: {
+            agentId: true,
+          },
+        },
+      },
     });
 
     if (!parcel) {
@@ -394,6 +414,15 @@ export const updateParcel = async (req: AuthRequest, res: Response): Promise<voi
       },
     });
 
+    const activityData = {
+      parcelId: parcel.id,
+      action: "updated",
+      activityBy: userId,
+      role: userRole,
+    };
+
+    await prisma.parcelActivity.create({ data: activityData });
+
     ResponseHandler.success(res, "Parcel updated successfully", updatedParcel);
   } catch (error) {
     Logger.error("Update parcel error:", error);
@@ -407,7 +436,7 @@ export const updateParcelStatus = async (req: AuthRequest, res: Response): Promi
     const { id } = req.params;
     const userId = req.user?.id;
     const userRole = req.user?.role;
-    const { status }: UpdateParcelStatusRequest = req.body;
+    const { status, note }: UpdateParcelStatusRequest = req.body;
 
     if (userRole !== UserRole.admin && userRole !== UserRole.agent) {
       ResponseHandler.forbidden(res, "Parcel status update permission denied.");
@@ -416,7 +445,9 @@ export const updateParcelStatus = async (req: AuthRequest, res: Response): Promi
 
     const parcel = await prisma.parcel.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        status: true,
         assignment: true,
       },
     });
@@ -442,25 +473,25 @@ export const updateParcelStatus = async (req: AuthRequest, res: Response): Promi
     const updatedParcel = await prisma.parcel.update({
       where: { id },
       data: { status },
-      include: {
-        customer: {
-          select: {
-            fullName: true,
-            phone: true,
-          },
-        },
-        assignment: {
-          include: {
-            agent: {
-              select: {
-                fullName: true,
-                phone: true,
-              },
-            },
-          },
-        },
+      select: {
+        id: true,
+        trackingCode: true,
+        status: true,
+        updatedAt: true,
       },
     });
+
+    const activityData = {
+      parcelId: id,
+      action: status,
+      oldStatus: parcel.status,
+      newStatus: status,
+      activityBy: userId,
+      role: userRole,
+      description: note,
+    };
+
+    await prisma.parcelActivity.create({ data: activityData });
 
     ResponseHandler.success(res, "Parcel status updated successfully", updatedParcel);
   } catch (error) {

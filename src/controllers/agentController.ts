@@ -21,13 +21,13 @@ export const updateAgentLocation = async (req: AuthRequest, res: Response) => {
       update: {
         latitude,
         longitude,
-        status: status ?? "AVAILABLE",
+        status: status ?? "on_delivery",
       },
       create: {
         agentId,
         latitude,
         longitude,
-        status: status ?? "AVAILABLE",
+        status: status ?? "available",
       },
     });
 

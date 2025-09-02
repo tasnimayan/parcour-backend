@@ -128,6 +128,7 @@ model Customer {
   wallet    CustomerWallet?
   feedback  Feedback[]
 
+  @@index([userId])
   @@map("customers")
 }
 
@@ -146,6 +147,7 @@ model CustomerAddress {
   isDefault  Boolean  @default(false) @map("is_default")
   createdAt  DateTime @default(now()) @map("created_at")
 
+  @@index([customerId])
   @@map("customer_addresses")
 }
 
@@ -178,6 +180,7 @@ model Agent {
   routes      Route[]
   feedback    Feedback[]
 
+  @@index([userId])
   @@map("agents")
 }
 
@@ -218,6 +221,7 @@ model Admin {
   // Relations
   assignments ParcelAssignment[]
 
+  @@index([userId])
   @@map("admins")
 }
 
@@ -235,7 +239,7 @@ model Parcel {
   deliveryLng           Decimal?       @map("delivery_lng") @db.Decimal(9, 6)
   recipientName         String         @map("recipient_name")
   recipientPhone        String         @map("recipient_phone")
-  parcelSize            String         @map("parcel_size") // small, medium, large
+  parcelSize            String         @map("parcel_size")
   parcelWeight          Decimal?       @map("parcel_weight") @db.Decimal(10, 2)
   parcelType            String         @map("parcel_type") // parcel, document, etc
   serviceType           ParcelService  @map("service_type")
@@ -254,7 +258,9 @@ model Parcel {
   assignment ParcelAssignment?
   payment    Payment?
   feedback   Feedback?
+  activity   ParcelActivity[]
 
+  @@index([trackingCode])
   @@map("parcels")
 }
 
@@ -270,6 +276,23 @@ model ParcelAssignment {
   assignedAt DateTime @default(now()) @map("assigned_at")
 
   @@map("parcel_assignments")
+}
+
+model ParcelActivity {
+  id          Int           @id @default(autoincrement())
+  parcelId    String        @map("parcel_id")
+  parcel      Parcel        @relation(fields: [parcelId], references: [id], onDelete: Cascade)
+  action      String        @map("action") // e.g., created, updated, assigned, picked_up, in_transit, delayed, delivered, canceled, returned, payment_confirmed, other
+  oldStatus   ParcelStatus? @map("old_status")
+  newStatus   ParcelStatus? @map("new_status")
+  description String?       @map("description") @db.Text
+  activityBy  String        @map("activity_by")
+  role        UserRole?     @map("role")
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  @@index([parcelId])
+  @@index([parcelId, activityBy], map: "idx_parcel_activity_by")
+  @@map("parcel_activity")
 }
 
 // Routes
