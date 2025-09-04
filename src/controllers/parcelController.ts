@@ -168,9 +168,11 @@ export const getParcels = async (req: AuthRequest, res: Response): Promise<void>
     const {
       page = "1",
       limit = "10",
+      search,
       status,
-      paymentType,
+      priorityType,
       parcelType,
+      serviceType,
       sortBy = "createdAt",
       sortOrder = "desc",
     } = req.query;
@@ -197,11 +199,21 @@ export const getParcels = async (req: AuthRequest, res: Response): Promise<void>
     if (status) {
       whereClause.status = status;
     }
-    if (paymentType) {
-      whereClause.paymentType = paymentType;
+    if (priorityType) {
+      whereClause.priorityType = priorityType;
     }
     if (parcelType) {
       whereClause.parcelType = parcelType;
+    }
+    if (serviceType) {
+      whereClause.serviceType = serviceType;
+    }
+    if (search) {
+      whereClause.OR = [
+        { trackingCode: { contains: search, mode: "insensitive" } },
+        { customer: { fullName: { contains: search, mode: "insensitive" } } },
+        { customer: { phone: { contains: search, mode: "insensitive" } } },
+      ];
     }
 
     // Get parcels with pagination
@@ -470,9 +482,11 @@ export const updateParcelStatus = async (req: AuthRequest, res: Response): Promi
       return;
     }
 
+    const deliveredAt = status === ParcelStatus.delivered ? new Date() : null;
+
     const updatedParcel = await prisma.parcel.update({
       where: { id },
-      data: { status },
+      data: { status, deliveredAt },
       select: {
         id: true,
         trackingCode: true,
@@ -587,60 +601,6 @@ export const getParcelStats = async (req: AuthRequest, res: Response): Promise<v
   } catch (error) {
     Logger.error("Get parcel stats error:", error);
     ResponseHandler.serverError(res, "Failed to retrieve parcel statistics");
-  }
-};
-
-export const getParcelByTrackingCode = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const userId = req.user?.id;
-    const userRole = req.user?.role;
-
-    const parcel = await prisma.parcel.findUnique({
-      where: { trackingCode: id },
-      include: {
-        assignment: {
-          include: {
-            agent: {
-              select: {
-                fullName: true,
-                phone: true,
-                vehicleType: true,
-                vehicleNumber: true,
-                location: {
-                  select: {
-                    latitude: true,
-                    longitude: true,
-                    status: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!parcel) {
-      ResponseHandler.notFound(res, "Parcel not found");
-      return;
-    }
-
-    // Check access permissions
-    if (userRole === UserRole.customer && parcel.customerId !== userId) {
-      ResponseHandler.forbidden(res, "You can only access your own parcels");
-      return;
-    }
-
-    if (userRole === UserRole.agent && parcel.assignment?.agentId !== userId) {
-      ResponseHandler.forbidden(res, "You can only access assigned parcels");
-      return;
-    }
-
-    ResponseHandler.success(res, "Parcel retrieved successfully", parcel);
-  } catch (error) {
-    Logger.error("Get parcel by ID error:", error);
-    ResponseHandler.serverError(res, "Failed to retrieve parcel");
   }
 };
 

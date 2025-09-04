@@ -412,7 +412,7 @@ export const getProfile = async (req: Request, res: Response): Promise<void> => 
       case UserRole.agent:
         profile = {
           ...user.agent,
-          currentLocation: user.agent?.location,
+          locationStatus: user.agent?.location?.status,
         };
         break;
       case UserRole.admin:

@@ -14,5 +14,6 @@ router.post("/assign/agent", authorize([UserRole.admin]), adminController.assign
 router.get("/agents", authorize([UserRole.admin]), adminController.getAgentsList);
 router.get("/users", authorize([UserRole.admin]), adminController.getUsersList);
 router.get("/stats/counts", authorize([UserRole.admin]), adminController.getAdminStats);
+router.patch("/users/status", authorize([UserRole.admin]), adminController.updateUserStatus);
 
 export default router;

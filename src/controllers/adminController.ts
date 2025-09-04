@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { ParcelStatus, UserRole } from "@prisma/client";
+import { ParcelStatus, UserRole, UserStatus } from "@prisma/client";
 import prisma from "../config/database";
 import { ResponseHandler } from "../utils/response";
 import { Logger } from "../utils/logger";
@@ -28,7 +28,7 @@ export const assignAgentToParcel = async (req: AuthRequest, res: Response) => {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      const assignment = await prisma.parcelAssignment.upsert({
+      const assignment = await tx.parcelAssignment.upsert({
         where: { parcelId },
         update: {
           agentId,
@@ -50,22 +50,21 @@ export const assignAgentToParcel = async (req: AuthRequest, res: Response) => {
         },
       });
 
-      const parcelStatus = await prisma.parcel.update({
+      const parcelStatus = await tx.parcel.update({
         where: { id: parcelId, status: { in: [ParcelStatus.pending, ParcelStatus.assigned] } },
         data: { status: ParcelStatus.assigned },
         select: { updatedAt: true },
       });
-
-      const activityData = {
-        parcelId: parcelId,
-        action: "assigned",
-        activityBy: userId,
-        role: UserRole.admin,
-      };
-      await prisma.parcelActivity.create({ data: activityData });
-
       return { assignment, parcelStatus };
     });
+
+    const activityData = {
+      parcelId: parcelId,
+      action: "assigned",
+      activityBy: userId,
+      role: UserRole.admin,
+    };
+    await prisma.parcelActivity.create({ data: activityData });
 
     ResponseHandler.success(res, "Agent assigned successfully", result.assignment);
   } catch (error) {
@@ -131,7 +130,7 @@ export const getUsersList = async (req: AuthRequest, res: Response): Promise<voi
       return;
     }
 
-    const { search, role } = req.query;
+    const { search, role, status } = req.query;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
@@ -139,17 +138,19 @@ export const getUsersList = async (req: AuthRequest, res: Response): Promise<voi
     const where: any = {};
 
     if (role) {
-      where.role = (role as string).toUpperCase() as UserRole;
+      where.role = role as UserRole;
     }
-
+    if (status) {
+      where.status = status as UserStatus;
+    }
     if (search) {
       where.OR = [
-        { customer: { fullName: { contains: search as string, mode: "insensitive" } } },
-        { agent: { fullName: { contains: search as string, mode: "insensitive" } } },
-        { admin: { fullName: { contains: search as string, mode: "insensitive" } } },
-        { email: { contains: search as string, mode: "insensitive" } },
-        { customer: { phone: { contains: search as string, mode: "insensitive" } } },
-        { agent: { phone: { contains: search as string, mode: "insensitive" } } },
+        { customer: { fullName: { contains: search, mode: "insensitive" } } },
+        { agent: { fullName: { contains: search, mode: "insensitive" } } },
+        { admin: { fullName: { contains: search, mode: "insensitive" } } },
+        { email: { contains: search, mode: "insensitive" } },
+        { customer: { phone: { contains: search, mode: "insensitive" } } },
+        { agent: { phone: { contains: search, mode: "insensitive" } } },
       ];
     }
 
@@ -261,5 +262,54 @@ export const getAdminStats = async (req: AuthRequest, res: Response): Promise<vo
   } catch (error) {
     Logger.error("Get parcel stats error:", error);
     ResponseHandler.serverError(res, "Failed to retrieve parcel statistics");
+  }
+};
+
+// Update user status
+export const updateUserStatus = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userRole = req.user?.role;
+    if (userRole !== UserRole.admin) {
+      ResponseHandler.forbidden(res, "Only admin can update user status");
+      return;
+    }
+
+    const { userId, status } = req.body;
+    if (!userId || !status) {
+      ResponseHandler.error(res, "userId and status are required");
+      return;
+    }
+
+    // Validate status
+    const validStatuses = [UserStatus.active, UserStatus.inactive, UserStatus.suspended, UserStatus.deleted];
+    if (!validStatuses.includes(status)) {
+      ResponseHandler.error(res, "Invalid status value");
+      return;
+    }
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      ResponseHandler.notFound(res, "User not found");
+      return;
+    }
+
+    // Prevent admin from updating their own status
+    if (req.user?.id === userId) {
+      ResponseHandler.error(res, "You cannot update your own status");
+      return;
+    }
+
+    // Update status
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { status },
+      select: { id: true, email: true, role: true, status: true, updatedAt: true },
+    });
+
+    ResponseHandler.success(res, "User status updated successfully", updatedUser);
+  } catch (error) {
+    Logger.error("Update user status error:", error);
+    ResponseHandler.serverError(res, "Failed to update user status");
   }
 };

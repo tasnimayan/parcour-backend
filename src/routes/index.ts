@@ -5,6 +5,7 @@ import authRoutes from "./authRoutes";
 import adminRoutes from "./adminRoutes";
 import agentRoutes from "./agentRoutes";
 import parcelRoutes from "./parcelRoutes";
+import trackingRoutes from "./trackingRoutes";
 
 const router = Router();
 
@@ -19,6 +20,9 @@ router.use("/agent", agentRoutes);
 
 // Parcel routes
 router.use("/parcel", parcelRoutes);
+
+// Tracking routes
+router.use("/tracking", trackingRoutes);
 
 // Health check endpoint
 router.get("/health", (req, res) => {

@@ -15,6 +15,17 @@ export const updateAgentLocation = async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    // Validate coordinates
+    if (latitude < -90 || latitude > 90) {
+      ResponseHandler.error(res, "Invalid latitude. Must be between -90 and 90");
+      return;
+    }
+
+    if (longitude < -180 || longitude > 180) {
+      ResponseHandler.error(res, "Invalid longitude. Must be between -180 and 180");
+      return;
+    }
+
     // 1. Update current/latest location
     const updated = await prisma.agentLocation.upsert({
       where: { agentId },
@@ -22,6 +33,7 @@ export const updateAgentLocation = async (req: AuthRequest, res: Response) => {
         latitude,
         longitude,
         status: status ?? "on_delivery",
+        updatedAt: new Date(),
       },
       create: {
         agentId,
@@ -92,5 +104,65 @@ export const getAgentParcelStats = async (req: AuthRequest, res: Response): Prom
   } catch (error) {
     Logger.error("Get parcel stats error:", error);
     ResponseHandler.serverError(res, "Failed to retrieve parcel statistics");
+  }
+};
+
+export const getAgentLocation = async (req: AuthRequest, res: Response) => {
+  try {
+    const agentId = req.user?.id;
+
+    const location = await prisma.agentLocation.findUnique({
+      where: { agentId: agentId! },
+    });
+
+    if (!location) {
+      ResponseHandler.notFound(res, "Agent location not found");
+      return;
+    }
+
+    ResponseHandler.success(res, "Agent location retrieved successfully", location);
+  } catch (error) {
+    Logger.error("Get agent location error:", error);
+    ResponseHandler.serverError(res, "Failed to retrieve agent location");
+  }
+};
+
+export const getAgentDeliveries = async (req: AuthRequest, res: Response) => {
+  try {
+    const agentId = req.user?.id;
+    const { status } = req.query;
+
+    const whereClause: any = {
+      assignment: { agentId },
+    };
+
+    if (status) {
+      whereClause.status = status;
+    }
+
+    const deliveries = await prisma.parcel.findMany({
+      where: whereClause,
+      include: {
+        customer: {
+          select: {
+            fullName: true,
+            phone: true,
+          },
+        },
+        payment: {
+          select: {
+            amount: true,
+            paymentType: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    ResponseHandler.success(res, "Agent deliveries retrieved successfully", deliveries);
+  } catch (error) {
+    Logger.error("Get agent deliveries error:", error);
+    ResponseHandler.serverError(res, "Failed to retrieve deliveries");
   }
 };

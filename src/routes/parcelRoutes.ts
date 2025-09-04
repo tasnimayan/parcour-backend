@@ -26,12 +26,6 @@ router.get("/", parcelValidators.listParcels, handleValidationErrors, parcelCont
 router.get("/stats", authorize([UserRole.admin]), parcelController.getParcelStats);
 router.get("/customer/stats", authorize([UserRole.customer]), parcelController.getCustomerStats);
 
-router.get(
-  "/track/:id",
-  authorize([UserRole.agent, UserRole.customer, UserRole.admin]),
-  parcelController.getParcelByTrackingCode
-);
-
 // Get single parcel by ID
 router.get("/:id", parcelValidators.parcelId, handleValidationErrors, parcelController.getParcelById);
 

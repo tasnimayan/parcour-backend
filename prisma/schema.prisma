@@ -16,6 +16,8 @@ enum UserRole {
 
 enum UserStatus {
   active
+  pending
+  inactive
   suspended
   deleted
 }

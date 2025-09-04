@@ -2,11 +2,14 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
+import { createServer } from "http";
+import { Server as SocketIOServer } from "socket.io";
 
 // Import configurations and utilities
 import config from "./config/env";
 import { Logger } from "./utils/logger";
 import { ResponseHandler } from "./utils/response";
+import { LocationService } from "./services/locationService";
 
 // Import middleware
 import { errorHandler } from "./middleware/errorHandler";
@@ -17,13 +20,33 @@ import indexRoutes from "./routes";
 
 class App {
   public app: express.Application;
+  public server: any;
+  public io: SocketIOServer;
+  public locationService: LocationService;
 
   constructor() {
     this.app = express();
+
+    this.server = createServer(this.app);
+    this.initializeSocket();
+
     this.initializeLogger();
     this.initializeMiddleware();
     this.initializeRoutes();
     this.initializeErrorHandling();
+  }
+
+  private initializeSocket(): void {
+    this.io = new SocketIOServer(this.server, {
+      cors: {
+        origin: config.ALLOWED_ORIGINS,
+        methods: ["GET", "POST"],
+        credentials: true,
+      },
+    });
+
+    this.locationService = new LocationService(this.io);
+    Logger.info("Socket.IO initialized for real-time location tracking");
   }
 
   private initializeLogger(): void {
@@ -99,7 +122,7 @@ class App {
   }
 
   public listen(): void {
-    this.app.listen(config.PORT, () => {
+    this.server.listen(config.PORT, () => {
       Logger.info(`Server running on port ${config.PORT}`);
       Logger.info(`Environment: ${config.NODE_ENV}`);
       Logger.info(`API Base URL: http://localhost:${config.PORT}/api/${config.API_VERSION}`);
