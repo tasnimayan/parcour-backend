@@ -26,11 +26,11 @@ class App {
 
   constructor() {
     this.app = express();
-
     this.server = createServer(this.app);
+    this.initializeLogger();
+
     this.initializeSocket();
 
-    this.initializeLogger();
     this.initializeMiddleware();
     this.initializeRoutes();
     this.initializeErrorHandling();
